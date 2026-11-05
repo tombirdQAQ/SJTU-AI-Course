@@ -36,6 +36,9 @@ jobs:
       - name: Build static site
         run: npm run build
 
+      - name: Test formula repair
+        run: python -m unittest discover -s scripts -p "test_*.py"
+
       - name: Validate question data
         run: python scripts/validate_questions.py
 
