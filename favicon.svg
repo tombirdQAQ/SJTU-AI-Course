@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>AI 课程题库练习</title>
+  <rect width="64" height="64" rx="15" fill="#145b4b"/>
+  <path d="M19 17.5h17.5a5 5 0 0 1 5 5V45a5 5 0 0 1-5 5H19a5 5 0 0 1-5-5V22.5a5 5 0 0 1 5-5Z" fill="#fff"/>
+  <path d="M23 31h10M23 37h10M23 43h6" fill="none" stroke="#145b4b" stroke-width="3" stroke-linecap="round"/>
+  <path d="m36.5 39 2.7 2.7 6-7" fill="none" stroke="#bd5f32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M23 17.5v-3.2M29 17.5v-5M35 17.5v-3.2M23 14.3l6 3.2 6-3.2" fill="none" stroke="#8ee0ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="23" cy="14" r="2.5" fill="#8ee0ca"/>
+  <circle cx="29" cy="12" r="2.5" fill="#8ee0ca"/>
+  <circle cx="35" cy="14" r="2.5" fill="#8ee0ca"/>
+</svg>

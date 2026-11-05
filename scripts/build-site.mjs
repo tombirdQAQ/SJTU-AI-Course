@@ -6,12 +6,13 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const dist = join(root, "dist");
 
 // 主页公告来源：GitHub Discussions 的公告帖，构建时注入正文。
-const ANNOUNCEMENT = { owner: "tangmubai", repo: "SJTU-AI-Course", number: 7 };
+const ANNOUNCEMENT = { owner: "tombirdQAQ", repo: "SJTU-AI-Course", number: 7 };
 const ANNOUNCEMENT_SLOT = "<!-- announcement:slot -->";
 
 const siteFiles = [
   "_headers",
   "_redirects",
+  "favicon.svg",
   "index.html",
   "practice.html",
   "styles.css",
@@ -32,8 +33,6 @@ for (const entry of await readdir(root, { withFileTypes: true })) {
     await copyFile(join(root, entry.name), join(dist, entry.name));
   }
 }
-
-await injectAnnouncement();
 
 await injectAnnouncement();
 

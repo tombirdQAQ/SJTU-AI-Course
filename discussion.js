@@ -3,7 +3,7 @@
 
   const GISCUS_ORIGIN = "https://giscus.app";
   const GISCUS_CONFIG = {
-    repo: "tangmubai/SJTU-AI-Course",
+    repo: "tombirdQAQ/SJTU-AI-Course",
     repoId: "R_kgDOTJHrpg",
     category: "Announcements",
     categoryId: "DIC_kwDOTJHrps4DAMXm",

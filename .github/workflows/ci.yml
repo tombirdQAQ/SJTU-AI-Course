@@ -29,8 +29,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      # 与 Cloudflare Workers Builds 一致使用 npm ci，确保 package-lock.json 与 package.json 同步
+      - name: Install dependencies
+        run: npm ci
+
       - name: Build static site
         run: npm run build
+
+      - name: Test formula repair
+        run: python -m unittest discover -s scripts -p "test_*.py"
 
       - name: Validate question data
         run: python scripts/validate_questions.py

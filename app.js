@@ -9,7 +9,7 @@
 
   const STORAGE_KEY = "ai-course-practice-v1";
   const THEME_KEY = "ai-course-theme";
-  const defaultState = { attempts: 0, wrong: {}, completed: {}, resumeAll: 0, mistakes: {} };
+  const defaultState = { attempts: 0, wrong: {}, completed: {}, results: {}, resumeAll: 0, mistakes: {} };
   let state = loadState();
   let session = null;
   let selectedAnswer = "";
@@ -24,7 +24,7 @@
     try {
       return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"));
     } catch {
-      return { ...defaultState, wrong: {}, completed: {}, mistakes: {} };
+      return { ...defaultState, wrong: {}, completed: {}, results: {}, mistakes: {} };
     }
   }
 
@@ -32,6 +32,7 @@
     const next = { ...defaultState, ...raw };
     next.wrong = isPlainObject(next.wrong) ? next.wrong : {};
     next.completed = isPlainObject(next.completed) ? next.completed : {};
+    next.results = isPlainObject(next.results) ? next.results : {};
     next.mistakes = isPlainObject(next.mistakes) ? next.mistakes : {};
 
     Object.entries(next.wrong).forEach(([id, record]) => {
@@ -160,6 +161,7 @@
     $("documentList").innerHTML = bank.documents.map((doc, index) => {
       const learned = learnedByDoc[index] || 0;
       const pct = doc.questionCount ? Math.round((learned / doc.questionCount) * 100) : 0;
+      const chapterCompleted = learned >= doc.questionCount;
       return `
       <div class="document-row">
         <span class="document-order">${String(index + 1).padStart(2, "0")}</span>
@@ -171,7 +173,7 @@
           </div>
         </div>
         <span class="document-count">${doc.questionCount} 题</span>
-        <button class="chapter-practice-button" type="button" data-document-index="${index}">练习本章</button>
+        <button class="chapter-practice-button" type="button" data-document-index="${index}" ${chapterCompleted ? "disabled" : ""}>${chapterCompleted ? "已完成" : "练习本章"}</button>
       </div>`;
     }).join("");
     document.querySelectorAll(".chapter-practice-button").forEach((button) => {
@@ -188,14 +190,19 @@
       ? bank.questions.filter((question) => state.wrong[question.id])
       : mode === "chapter" && validDocumentIndex
         ? bank.questions.filter((question) => question.documentIndex === documentIndex)
-        : bank.questions.filter((question) => !state.completed[question.id]);
+        : bank.questions;
     if (!questions.length) return;
+
+    const firstIndex = mode === "all" || mode === "chapter"
+      ? findNextUncompletedIndex(questions, -1)
+      : 0;
+    if (firstIndex === -1) return;
 
     session = {
       mode,
       documentIndex: mode === "chapter" ? documentIndex : null,
       questions,
-      index: 0,
+      index: firstIndex,
       correct: 0,
       incorrect: 0,
       revealed: 0,
@@ -246,6 +253,7 @@
     $("gradingHint").textContent = "";
     $("submitButton").classList.remove("hidden");
     $("nextButton").classList.add("hidden");
+    $("skipButton").classList.remove("hidden");
     $("removeWrongButton").classList.toggle("hidden", session.mode !== "wrong");
     $("prevButton").disabled = session.index === 0;
 
@@ -255,6 +263,7 @@
       currentReveal = false;
       $("submitButton").textContent = "提交答案";
       $("submitButton").disabled = true;
+      $("submitButton").classList.add("hidden");
       $("answerArea").innerHTML = options.map((option) => `
         <button class="option" type="button" data-answer="${escapeHtml(option.key)}">
           <span class="option-key">${escapeHtml(option.key)}</span>
@@ -262,7 +271,10 @@
         </button>
       `).join("");
       document.querySelectorAll(".option").forEach((button) => {
-        button.addEventListener("click", () => selectOption(button.dataset.answer));
+        button.addEventListener("click", () => {
+          selectOption(button.dataset.answer);
+          submitAnswer();
+        });
       });
     } else {
       // 填空题 / 简答题 / 计算题：显示参考答案后由用户自评正确或错误。
@@ -275,8 +287,22 @@
     }
 
     // 返回上一题时，恢复本轮已作答的状态（不重复计分）。
-    const record = session.answers[session.index];
+    const record = session.answers[question.id]
+      || (session.mode === "all" || session.mode === "chapter" ? completedRecord(question) : null);
     if (record) restoreAnswered(question, record);
+  }
+
+  function completedRecord(question) {
+    if (!state.completed[question.id]) return null;
+    const result = isPlainObject(state.results[question.id]) ? state.results[question.id] : {};
+    return { completed: true, isCorrect: typeof result.isCorrect === "boolean" ? result.isCorrect : null };
+  }
+
+  function findNextUncompletedIndex(questions, startIndex) {
+    for (let index = startIndex + 1; index < questions.length; index += 1) {
+      if (!state.completed[questions[index].id]) return index;
+    }
+    return -1;
   }
 
   function selectOption(value) {
@@ -325,6 +351,7 @@
 
   function finishButtons() {
     $("submitButton").classList.add("hidden");
+    $("skipButton").classList.add("hidden");
     $("nextButton").classList.remove("hidden");
     $("nextButton").textContent = session.index + 1 === session.questions.length ? "查看结果" : "下一题";
   }
@@ -366,7 +393,8 @@
   }
 
   function currentRevealRecord() {
-    const record = session?.answers?.[session.index];
+    const question = session?.questions?.[session.index];
+    const record = question ? session?.answers?.[question.id] : null;
     return record?.reveal ? record : null;
   }
 
@@ -423,6 +451,8 @@
     const isCorrect = (record.selfGrade || "correct") !== "wrong";
     record.selfGrade = isCorrect ? "correct" : "wrong";
     record.selfGradeFinalized = true;
+    record.isCorrect = isCorrect;
+    state.results[question.id] = { isCorrect, answeredAt: new Date().toISOString() };
 
     if (isCorrect) {
       session.correct += 1;
@@ -442,8 +472,23 @@
       showRevealFeedback(question);
       return;
     }
-    selectedAnswer = record.selected;
+    if (typeof record.isCorrect !== "boolean") {
+      showCompletedReadOnlyFeedback(question);
+      return;
+    }
+    selectedAnswer = record.selected || "";
     showGradedFeedback(question, record.isCorrect, record.selected);
+  }
+
+  function showCompletedReadOnlyFeedback(question) {
+    $("answerArea").innerHTML = `<div class="reveal-note">这道题已在此前完成，回看时仅供复习，不能再次作答。</div>`;
+    $("feedbackPanel").className = "feedback";
+    $("feedbackTitle").textContent = "已完成题目";
+    $("correctAnswer").textContent = question.answer;
+    $("explanation").textContent = question.explanation || "PDF 未提供单独解析。";
+    $("explanationRow").classList.toggle("hidden", !question.explanation);
+    $("wrongToggleButton").classList.add("hidden");
+    finishButtons();
   }
 
   function onSubmitClick() {
@@ -457,10 +502,13 @@
     const question = session.questions[session.index];
     const isCorrect = grade(question, selectedAnswer);
 
-    const firstTime = !session.answers[session.index];
+    const firstTime = session.mode === "wrong"
+      ? !session.answers[question.id]
+      : !state.completed[question.id];
     if (firstTime) {
       state.attempts = (state.attempts || 0) + 1;
       state.completed[question.id] = (state.completed[question.id] || 0) + 1;
+      state.results[question.id] = { isCorrect, answeredAt: new Date().toISOString() };
       if (isCorrect) {
         session.correct += 1;
         if (session.mode === "wrong") delete state.wrong[question.id];
@@ -468,7 +516,7 @@
         session.incorrect += 1;
         recordMistake(question, "practice");
       }
-      session.answers[session.index] = { selected: selectedAnswer, isCorrect };
+      session.answers[question.id] = { selected: selectedAnswer, isCorrect };
       saveState();
     }
 
@@ -480,11 +528,14 @@
     submitted = true;
     const question = session.questions[session.index];
 
-    if (!session.answers[session.index]) {
+    const firstTime = session.mode === "wrong"
+      ? !session.answers[question.id]
+      : !state.completed[question.id];
+    if (firstTime) {
       state.attempts = (state.attempts || 0) + 1;
       state.completed[question.id] = (state.completed[question.id] || 0) + 1;
       session.revealed += 1;
-      session.answers[session.index] = { reveal: true, selfGrade: "correct", selfGradeFinalized: false };
+      session.answers[question.id] = { reveal: true, selfGrade: "correct", selfGradeFinalized: false };
       saveState();
     }
 
@@ -515,7 +566,10 @@
 
   function nextQuestion() {
     if (submitted && currentReveal) finalizeRevealGrade();
-    if (session.index + 1 >= session.questions.length) {
+    const nextIndex = session.mode === "all" || session.mode === "chapter"
+      ? findNextUncompletedIndex(session.questions, session.index)
+      : session.index + 1 < session.questions.length ? session.index + 1 : -1;
+    if (nextIndex === -1) {
       saveState();
       $("completeTitle").textContent = session.mode === "wrong"
         ? "错题练习完成"
@@ -531,16 +585,23 @@
       showView("completeView");
       return;
     }
-    session.index += 1;
+    session.index = nextIndex;
     renderQuestion();
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function skipQuestion() {
+    if (!session) return;
+    const question = session.questions[session.index];
+    if ((session.mode === "all" || session.mode === "chapter") && state.completed[question.id]) return;
+    nextQuestion();
   }
 
   function removeCurrentWrong() {
     if (!session || session.mode !== "wrong") return;
     const question = session.questions[session.index];
     delete state.wrong[question.id];
-    delete session.answers[session.index];
+    delete session.answers[question.id];
     session.removed += 1;
     saveState();
     nextQuestion();
@@ -570,7 +631,7 @@
           <span class="chapter-discussion-hint">展开讨论</span>
         </summary>
         <div class="chapter-discussion-body">
-          <a class="text-button discussion-link" href="https://github.com/tangmubai/SJTU-AI-Course/discussions" target="_blank" rel="noopener">在 GitHub 中查看 ↗</a>
+          <a class="text-button discussion-link" href="https://github.com/tombirdQAQ/SJTU-AI-Course/discussions" target="_blank" rel="noopener">在 GitHub 中查看 ↗</a>
           <div id="chapterDiscussionEmbed" class="discussion-embed"></div>
         </div>
       </details>`;
@@ -595,7 +656,7 @@
           <span class="chapter-discussion-hint">展开讨论</span>
         </summary>
         <div class="chapter-discussion-body">
-          <a class="text-button discussion-link" href="https://github.com/tangmubai/SJTU-AI-Course/discussions" target="_blank" rel="noopener">在 GitHub 中查看 ↗</a>
+          <a class="text-button discussion-link" href="https://github.com/tombirdQAQ/SJTU-AI-Course/discussions" target="_blank" rel="noopener">在 GitHub 中查看 ↗</a>
           <div id="questionDiscussionEmbed" class="discussion-embed"></div>
         </div>
       </details>`;
@@ -611,7 +672,7 @@
 
   function resetAll() {
     if (!window.confirm("确定清空答题次数、顺序进度和全部错题吗？此操作不可撤销。")) return;
-    state = { ...defaultState, wrong: {}, completed: {}, mistakes: {} };
+    state = { ...defaultState, wrong: {}, completed: {}, results: {}, mistakes: {} };
     saveState();
     renderHome();
   }
@@ -628,7 +689,7 @@
     if (!session || !session.questions[session.index]) return null;
     
     const question = session.questions[session.index];
-    const repoUrl = "https://github.com/tangmubai/SJTU-AI-Course";
+    const repoUrl = "https://github.com/tombirdQAQ/SJTU-AI-Course";
     const title = `【反馈】${question.document.replace(/\.pdf$/i, "")} - 第 ${question.page} 页 - 题 ${question.number}`;
     const body = `## 题目信息\n- **PDF**: ${question.document}\n- **页码**: 第 ${question.page} 页\n- **题号**: 第 ${question.number} 题\n- **题型**: ${question.type}\n\n## 问题描述\n请在此处描述您发现的问题：\n\n## 问题内容\n**题目**: ${question.prompt}\n\n**答案**: ${question.answer}\n\n## 建议\n请提出您的改进建议：`;
     
@@ -675,12 +736,30 @@
   $("submitButton").addEventListener("click", onSubmitClick);
   $("nextButton").addEventListener("click", nextQuestion);
   $("prevButton").addEventListener("click", prevQuestion);
+  $("skipButton").addEventListener("click", skipQuestion);
   $("removeWrongButton").addEventListener("click", removeCurrentWrong);
   $("reportIssueButton").addEventListener("click", reportIssue);
   $("exitButton").addEventListener("click", goHome);
   $("homeButton").addEventListener("click", goHome);
   $("completeHomeButton").addEventListener("click", goHome);
   $("resetButton").addEventListener("click", resetAll);
+
+  let touchStart = null;
+  $("practiceView").addEventListener("touchstart", (event) => {
+    if (event.target.closest("button, a, textarea")) return;
+    const touch = event.changedTouches[0];
+    touchStart = { x: touch.clientX, y: touch.clientY };
+  }, { passive: true });
+  $("practiceView").addEventListener("touchend", (event) => {
+    if (!touchStart) return;
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - touchStart.x;
+    const deltaY = touch.clientY - touchStart.y;
+    touchStart = null;
+    if (Math.abs(deltaX) < 64 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    if (deltaX > 0) prevQuestion();
+    else nextQuestion();
+  }, { passive: true });
 
   document.addEventListener("keydown", (event) => {
     if ($("practiceView").classList.contains("hidden")) return;
@@ -703,7 +782,10 @@
     } else if (event.key === "ArrowLeft") {
       prevQuestion();
     } else if (event.key === "ArrowRight") {
-      if (submitted) nextQuestion();
+      event.preventDefault();
+      const question = session.questions[session.index];
+      if ((session.mode === "all" || session.mode === "chapter") && state.completed[question.id]) nextQuestion();
+      else skipQuestion();
     } else if (event.key === "Enter" && !event.shiftKey) {
       if (submitted) nextQuestion();
       else onSubmitClick();
