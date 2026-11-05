@@ -10,9 +10,6 @@ import json
 import re
 from pathlib import Path
 
-from pypdf import PdfReader
-
-
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "questions.js"
 
@@ -101,14 +98,24 @@ def repair_math_extraction(text: str) -> str:
     text = text.replace("𝛼2 = 2 4+2+1 = 7", "𝛼2 = 2/(4+2+1) = 2/7")
 
     # Mean / standard-deviation formulas extracted from stacked fractions.
+    def root_fraction_repl(match: re.Match[str]) -> str:
+        numerator, denominator = match.groups()
+        # Match the parenthesized operand once, then check for an internal
+        # plus. Nested overlapping repetitions caused exponential backtracking
+        # when a closing parenthesis was missing. Preserve the old requirement
+        # of at least one character on either side of the plus.
+        if "+" not in numerator[1:-1]:
+            return match.group(0)
+        return f"√(({numerator})/{denominator})"
+
     text = re.sub(r"([0-9]+(?:\+[0-9]+)+)\s+([2-9])\s*=", r"(\1)/\2 =", text)
     text = re.sub(r"√([^=。；]+?)\s+([2-9])\s*=", r"√((\1)/\2) =", text)
-    text = re.sub(r"√\(([^()]+(?:\+[^()]+)+)\)/([2-9])", r"√((\1)/\2)", text)
+    text = re.sub(r"√\(([^()]+)\)/([2-9])", root_fraction_repl, text)
     text = re.sub(r"\b([0-9]+(?:\+[0-9]+)+)\+([0-9]+)/([2-9])\s*=", r"(\1+\2)/\3 =", text)
     text = re.sub(r"√([0-9]+(?:\+[0-9]+)+)\+([0-9]+)/([2-9])", r"√((\1+\2)/\3)", text)
     text = re.sub(r"([−-]?\d+)−(\d+)\s+([0-9]+(?:\.[0-9]+)?)", r"(\1−\2)/\3", text)
     text = re.sub(r"/\s+√", "/√", text)
-    text = re.sub(r"√\(([^()]+(?:\+[^()]+)+)\)/([2-9])", r"√((\1)/\2)", text)
+    text = re.sub(r"√\(([^()]+)\)/([2-9])", root_fraction_repl, text)
 
     return text
 
@@ -223,6 +230,8 @@ def expand_inline_options(options: list[dict[str, list[str]]]) -> list[dict[str,
 
 
 def parse_pdf(path: Path, document_index: int) -> list[dict]:
+    from pypdf import PdfReader
+
     reader = PdfReader(path)
     title_hint = path.stem.split("-")[-1].replace("第", "")
     lines: list[tuple[int, str]] = []
