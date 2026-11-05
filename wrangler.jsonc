@@ -1,14 +1,10 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "ai-course-practice",
-  "main": "src/worker.js",
   "compatibility_date": "2026-06-30",
-  "pages_build_output_dir": "./dist",
   "assets": {
     "directory": "./dist",
-    "binding": "STATIC_ASSETS",
-    "not_found_handling": "none",
-    "run_worker_first": ["/practice", "/practice/"]
+    "not_found_handling": "none"
   }
 }
 

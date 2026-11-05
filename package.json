@@ -5,5 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build-site.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.107.0"
   }
 }

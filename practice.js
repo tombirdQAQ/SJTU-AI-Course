@@ -87,6 +87,7 @@
     const button = $("themeToggle");
     button.textContent = theme === "dark" ? "☀" : "🌙";
     button.setAttribute("aria-label", theme === "dark" ? "切换浅色模式" : "切换深色模式");
+    window.dispatchEvent(new CustomEvent("ai-course-theme-change", { detail: theme }));
   }
   function toggleTheme() {
     const next = currentTheme() === "dark" ? "light" : "dark";

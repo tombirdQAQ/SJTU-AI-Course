@@ -6,7 +6,9 @@ __pycache__/
 .claude/
 .codex/
 dist/
+node_modules/
 .wrangler/
 .dev.vars
 .env
 cloudflared-aitest.yml
+.impeccable

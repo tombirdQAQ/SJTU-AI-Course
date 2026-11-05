@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#145b4b">
   <title>AI 课程题库练习</title>
   <script>
     // Apply the saved (or system) theme before first paint to avoid a flash.
@@ -19,13 +20,14 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css?v=20260724-header-layout">
 </head>
 <body>
   <header class="topbar">
     <button id="homeButton" class="brand" type="button" aria-label="返回首页">
-      <span class="brand-mark">AI</span>
-      <span>课程题库练习</span>
+      <img class="brand-mark" src="favicon.svg" alt="" width="42" height="42">
+      <span class="brand-title">AI 课程题库练习</span>
     </button>
     <div class="top-actions">
       <div class="top-stats">
@@ -40,7 +42,7 @@
     <section id="homeView" class="view">
       <div class="hero">
         <p class="eyebrow">本地离线题库</p>
-        <h1>按顺序学完，再集中消灭错题。</h1>
+        <h1>按顺序学完，再集中消灭错题</h1>
         <p class="hero-copy">题目、答案和解析均来自当前目录的 7 份 PDF。练习记录只保存在这台电脑的浏览器中。</p>
       </div>
 
@@ -49,7 +51,7 @@
           <div>
             <span class="mode-icon">01</span>
             <h2>顺序练习全部题目</h2>
-            <p>严格按照 PDF 文件及题目原顺序练习。</p>
+            <p id="allModeDescription">按原顺序练习尚未作答的题目。</p>
           </div>
           <button id="allModeButton" class="button primary" type="button">开始顺序练习</button>
         </article>
@@ -63,7 +65,7 @@
         </article>
       </div>
 
-      <a class="exam-cta" href="/practice">
+      <a class="exam-cta" href="practice.html">
         <span class="exam-cta-main">
           <span>🧪 模拟测试</span>
           <span class="exam-cta-sub">自定义考试范围与各题型数量组卷，交卷后错题自动加入错题集。</span>
@@ -82,6 +84,15 @@
           <button id="resetButton" class="text-button danger" type="button">清空全部记录</button>
         </div>
         <div id="documentList" class="document-list"></div>
+      </section>
+
+      <section class="discussion-panel home-discussion" aria-labelledby="homeDiscussionTitle">
+        <div class="discussion-heading">
+          <h2 id="homeDiscussionTitle">课程讨论</h2>
+          <a class="text-button discussion-link" href="https://github.com/tombirdQAQ/SJTU-AI-Course/discussions/7" target="_blank" rel="noopener">在 GitHub 中查看 ↗</a>
+        </div>
+        <div id="homeAnnouncement" class="home-announcement"><!-- announcement:slot --></div>
+        <div id="homeDiscussionEmbed" class="discussion-embed"></div>
       </section>
     </section>
 
@@ -107,6 +118,7 @@
         <p id="gradingHint" class="grading-hint hidden"></p>
         <div class="question-actions">
           <button id="prevButton" class="text-button" type="button">← 上一题</button>
+          <button id="skipButton" class="text-button" type="button"><span class="skip-label-full">跳过此题</span><span class="skip-label-short">跳过</span> →</button>
           <button id="removeWrongButton" class="text-button danger hidden" type="button">不再练这题</button>
           <button id="submitButton" class="button primary" type="button">提交答案</button>
           <button id="nextButton" class="button primary hidden" type="button">下一题</button>
@@ -119,8 +131,12 @@
           <p><strong>正确答案：</strong><span id="correctAnswer"></span></p>
           <p id="explanationRow"><strong>解析：</strong><span id="explanation"></span></p>
           <div id="revealGradeControls" class="reveal-grade hidden"></div>
+          <div class="feedback-actions">
+            <button id="reportIssueButton" class="text-button" type="button" title="报告此题的问题到 GitHub">📝 报告问题</button>
+          </div>
         </section>
       </article>
+      <div id="questionDiscussionHost"></div>
     </section>
 
     <section id="completeView" class="view hidden">
@@ -134,10 +150,27 @@
           <button id="completeWrongButton" class="button primary" type="button">继续练错题</button>
         </div>
       </article>
+      <div id="chapterDiscussionHost"></div>
     </section>
+
+    <footer class="site-legal" aria-label="许可声明">
+      <div class="site-legal-text">
+        <p>
+          本页面的全部内容在 <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.en">CC BY-SA 4.0</a>及<a href="https://opensource.org/license/mit">MIT License</a>协议之条款下提供，附加条款亦可能应用。
+        </p>
+        <p>
+          Copyright © 2026 sj-tu.com.
+        </p>
+      </div>
+      <a class="site-legal-github" href="https://github.com/tombirdQAQ/SJTU-AI-Course" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span>GitHub</span>
+      </a>
+    </footer>
   </main>
 
   <script src="questions.js"></script>
   <script src="app.js"></script>
+  <script src="discussion.js"></script>
 </body>
 </html>
